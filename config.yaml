@@ -43,5 +43,5 @@ video_list_doc_id:
 #        If you got a highlight result, click "Payload" tab and expand the "Form Data", look for doc_id
 #        If you don't get a result, switch to next graphql result
 # Step6: Click "Payload" tab, expand the "Form Data", search for doc_id
-video_info_doc_id: 
+video_info_doc_id:
 speed_limit: 5242880 # 5Byte * 1024 * 1024 = 5MB/s
