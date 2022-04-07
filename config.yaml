@@ -1,0 +1,47 @@
+sqlite_path: "./gfbld.db"
+use_proxy: true
+proxy: "127.0.0.1:8889"
+
+# This is streamer's userId, you can get it by:
+# Step1: Open His/Her live videos page (https://facebook/<USERNAME>/live_videos)
+# Step2: Open DevTool(On Chrome just press F12), then navigate to "Network" tab
+# Step3: Refresh current page, then you should see traffic shown in the "Network" tab
+# Step4: Press CTRL+F and at the left search area, input "userVanity":"<USERNAME>" (with quotes), then press enter to search
+# Step5: Look for content inside "live_videos", double click it, you should see the HTML code at the right-bottom area.
+# Step6: Click the HTML code, then press CTRL+F to search again. This time you will find that result are highlighted.
+# Stop7: Click the highlight code, press right-arrow a few times, you wil see userId, copy it and paste it here(without quotes)
+# Of course you can just use your mouse to left-click the highlight code and hold it, move right, then you will also see the userId
+id: 100044160562907
+
+# This is an authentication id, acted like cookies, haven't figured out how to generate it(seems like facebook generate it and embed it in
+# js file to pass to you. Random generated doc_id will cause "NOT IN DOC_ID POOL" error)
+# And also it's unknown that whether the doc_id will expire(seems not, at least for 2 days)
+# You can get it by:
+# Step1: Open streamer's live videos page (https://facebook/<USERNAME>/live_videos)
+# Step2: Open DevTool(On Chrome just press F12), then navigate to "Network" tab
+# Step3: Refresh current page, then you should see traffic shown in the "Network" tab
+#   Step3.1: Wait for all content completely loaded(no more traffic show up)
+#   Step3.2: Click the "Circle with a slash" looking button(clear button) just right above the "Filter" search input.
+#   Step3.3: Scroll down to load more videos(this is for triggering video-list query api, no needs to load all videos).
+#            If stream doesn't have that many videos, just simply go any other's streamer's live_videos page, and scroll.
+#            Just remember click the clear button every time you change streamer(if you didn't select "Preserve log", you can ignore the clear button)
+#   Step3.4: After scroll down, you should see new traffic coming out, wait for all content completely loaded(no more traffic show up)
+# Step4: At the top navbar, there is a "Filter" input, enter "graph"(without quotes)
+# Step5: Click any one of the result, at the right area, click "Preview", expand the JSON data by "data.node.all_lives.edges",
+#        If you see live_video's info, you can go to next step, otherwise, change another graphql result
+# Step6: Click "Payload" tab, expand the "Form Data", search for doc_id
+video_list_doc_id: 4544267522361086
+
+# This is same as above
+# You can get it by:
+# Step1: Open streamer's live videos page (https://facebook/<USERNAME>/live_videos)
+# Step2: Open DevTool(On Chrome just press F12), then navigate to "Network" tab
+# Step3: Open any of the video, and then start playing, after the video complete buffering and start playing, pause the video, go to next step
+# Step4: At the top navbar, there is a "Filter" input, enter "graph"(without quotes)
+# Step5: Click every graphql result until you find this(You can skip those short/small responses):
+#        As for each graphql result, click it, then click "Response" tab at the right, press CTRL+F to search for "maxWidth"(without quotes)
+#        If you got a highlight result, click "Payload" tab and expand the "Form Data", look for doc_id
+#        If you don't get a result, switch to next graphql result
+# Step6: Click "Payload" tab, expand the "Form Data", search for doc_id
+video_info_doc_id: 4926470060794031
+speed_limit: 5242880 # 5Byte * 1024 * 1024 = 5MB/s
