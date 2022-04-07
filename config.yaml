@@ -11,7 +11,7 @@ proxy: "127.0.0.1:8889"
 # Step6: Click the HTML code, then press CTRL+F to search again. This time you will find that result are highlighted.
 # Stop7: Click the highlight code, press right-arrow a few times, you wil see userId, copy it and paste it here(without quotes)
 # Of course you can just use your mouse to left-click the highlight code and hold it, move right, then you will also see the userId
-id: 100044160562907
+id:
 
 # This is an authentication id, acted like cookies, haven't figured out how to generate it(seems like facebook generate it and embed it in
 # js file to pass to you. Random generated doc_id will cause "NOT IN DOC_ID POOL" error)
@@ -30,7 +30,7 @@ id: 100044160562907
 # Step5: Click any one of the result, at the right area, click "Preview", expand the JSON data by "data.node.all_lives.edges",
 #        If you see live_video's info, you can go to next step, otherwise, change another graphql result
 # Step6: Click "Payload" tab, expand the "Form Data", search for doc_id
-video_list_doc_id: 4544267522361086
+video_list_doc_id:
 
 # This is same as above
 # You can get it by:
@@ -43,5 +43,5 @@ video_list_doc_id: 4544267522361086
 #        If you got a highlight result, click "Payload" tab and expand the "Form Data", look for doc_id
 #        If you don't get a result, switch to next graphql result
 # Step6: Click "Payload" tab, expand the "Form Data", search for doc_id
-video_info_doc_id: 4926470060794031
+video_info_doc_id: 
 speed_limit: 5242880 # 5Byte * 1024 * 1024 = 5MB/s
