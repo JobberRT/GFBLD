@@ -8,6 +8,7 @@ import (
 )
 
 func NewDB(path string) *gorm.DB {
+	logrus.Info("create sqlite database")
 	var db *gorm.DB
 	var err error
 

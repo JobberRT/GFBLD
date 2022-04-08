@@ -30,6 +30,7 @@ type Fetcher struct {
 }
 
 func NewFetcher(proxy string, id int, vlDocId, viDocId int) *Fetcher {
+	logrus.Info("create fetcher")
 	return &Fetcher{
 		id:      id,
 		vlDocId: vlDocId,
@@ -44,10 +45,12 @@ func NewFetcher(proxy string, id int, vlDocId, viDocId int) *Fetcher {
 }
 
 func (f *Fetcher) FetchLiveList() []*database.LiveRecord {
+	logrus.Info("fetch live videos list")
 	return f.getLiveList(nil, "")
 }
 
 func (f *Fetcher) FetchLiveInfo(ll []*database.LiveRecord, db *gorm.DB) {
+	logrus.Info("fetch live videos' info")
 	f.getLiveInfo(ll, db)
 }
 

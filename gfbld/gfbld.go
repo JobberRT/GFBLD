@@ -25,6 +25,7 @@ type Downloader struct {
 }
 
 func NewDownloader() *Downloader {
+	logrus.Info("creating downloader")
 	path := viper.GetString("sqlite_path")
 	if len(path) == 0 {
 		logrus.Panic("empty sqlite_path")
@@ -57,12 +58,14 @@ func NewDownloader() *Downloader {
 }
 
 func (d *Downloader) Start() {
+	logrus.Info("start the downloader loop")
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ticker.C:
+			logrus.Info("downloader tick")
 			ll := d.Fetcher.FetchLiveList()
 			for _, l := range ll {
 				if err := d.DB.Where("live_id = ?", l.LiveId).First(&database.LiveRecord{}).Error; err == nil {
@@ -76,16 +79,19 @@ func (d *Downloader) Start() {
 			d.download(ll)
 			d.combine()
 		case <-d.stopSignal:
+			logrus.Info("stop the downloader loop")
 			return
 		}
 	}
 }
 
 func (d *Downloader) Stop() {
+	logrus.Info("stop the downloader")
 	d.stopSignal <- 1
 }
 
 func (d *Downloader) filterLiveList() []*database.LiveRecord {
+	logrus.Info("get filtered live list from database")
 	ll := make([]*database.LiveRecord, 0)
 	if err := d.DB.Find(&ll, "combined = ?", false).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -98,6 +104,7 @@ func (d *Downloader) filterLiveList() []*database.LiveRecord {
 }
 
 func (d *Downloader) download(ll []*database.LiveRecord) {
+	logrus.Info("start download")
 	_, err := os.Stat("downloaded")
 	if err != nil {
 		if err := os.MkdirAll(filepath.Join(".", "downloaded"), os.ModePerm); err != nil {
@@ -135,7 +142,7 @@ func (d *Downloader) download(ll []*database.LiveRecord) {
 		for {
 			select {
 			case <-ticker.C:
-				fmt.Printf("downloading: %.2f%%, eta: %s\r", 100*res.Progress(), res.ETA().Format("15:04:05"))
+				fmt.Printf("downloading: %s, progress: %.2f%%, eta: %s\r", v.Name, 100*res.Progress(), res.ETA().Format("15:04:05"))
 			case <-res.Done:
 				if err := res.Err(); err != nil {
 					if strings.Contains(err.Error(), "403 Forbidden") {
@@ -163,7 +170,7 @@ func (d *Downloader) download(ll []*database.LiveRecord) {
 		for {
 			select {
 			case <-ticker.C:
-				fmt.Printf("downloading: %.2f%%, eta: %s\r", 100*res.Progress(), res.ETA().Format("15:04:05"))
+				fmt.Printf("downloading: %s, progress: %.2f%%, eta: %s\r", a.Name, 100*res.Progress(), res.ETA().Format("15:04:05"))
 			case <-res.Done:
 				if err := res.Err(); err != nil {
 					if strings.Contains(err.Error(), "403 Forbidden") {
@@ -183,6 +190,7 @@ func (d *Downloader) download(ll []*database.LiveRecord) {
 }
 
 func (d *Downloader) combine() {
+	logrus.Info("start combine")
 	vl := make([]*database.Video, 0)
 	if err := d.DB.Where("downloaded = ? and combined = ?", true, false).Find(&vl).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -246,6 +254,7 @@ func (d *Downloader) combine() {
 }
 
 func (d *Downloader) createGrab(proxy *url.URL, url string) (*grab.Client, *grab.Request, error) {
+	logrus.Info("create grab client")
 	gClient := &grab.Client{
 		UserAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.55 Safari/537.36",
 		HTTPClient: &http.Client{
