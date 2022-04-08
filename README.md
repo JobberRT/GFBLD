@@ -2,6 +2,8 @@
 Facebook live video downloader in Go
 
 ## PreRequirement
+### Custom your own configuration
+Copy ```config.example.yaml``` to ```config.yaml```, follow the instruction in it to custom it.
 ### FFmpeg
 GFBLD use exec.Command to execute combine command rather than ffmpeg binding package.So make sure your shell/terminal/cmd can call ffmpeg by "ffmpeg" command(You can do this by adding it to PATH or via brew in MacOS)
 #### Macos
