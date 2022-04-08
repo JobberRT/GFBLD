@@ -57,7 +57,10 @@ func main() {
 			select {
 			case <-c:
 				d.Stop()
+				logrus.Warn("os.exit with 0")
 				os.Exit(0)
+			default:
+				time.Sleep(time.Second)
 			}
 		}
 	}()

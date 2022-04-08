@@ -25,6 +25,7 @@ type Downloader struct {
 }
 
 func NewDownloader() *Downloader {
+	logrus.Info("creating downloader")
 	path := viper.GetString("sqlite_path")
 	if len(path) == 0 {
 		logrus.Panic("empty sqlite_path")
@@ -52,17 +53,19 @@ func NewDownloader() *Downloader {
 	return &Downloader{
 		DB:         database.NewDB(path),
 		Fetcher:    fetcher.NewFetcher(proxy, id, vlDocId, viDocId),
-		stopSignal: make(chan int),
+		stopSignal: make(chan int, 1),
 	}
 }
 
 func (d *Downloader) Start() {
+	logrus.Info("start the downloader loop")
 	ticker := time.NewTicker(5 * time.Second)
 	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ticker.C:
+			logrus.Info("downloader tick")
 			ll := d.Fetcher.FetchLiveList()
 			for _, l := range ll {
 				if err := d.DB.Where("live_id = ?", l.LiveId).First(&database.LiveRecord{}).Error; err == nil {
@@ -70,22 +73,25 @@ func (d *Downloader) Start() {
 				}
 				d.DB.Create(&l)
 			}
-			ll = d.filterLiveList()
+			ll = d.getFilteredLiveList()
 
 			d.Fetcher.FetchLiveInfo(ll, d.DB)
 			d.download(ll)
 			d.combine()
 		case <-d.stopSignal:
+			logrus.Info("stop the downloader loop")
 			return
 		}
 	}
 }
 
 func (d *Downloader) Stop() {
+	logrus.Info("stop the downloader")
 	d.stopSignal <- 1
 }
 
-func (d *Downloader) filterLiveList() []*database.LiveRecord {
+func (d *Downloader) getFilteredLiveList() []*database.LiveRecord {
+	logrus.Info("get filtered live list from database")
 	ll := make([]*database.LiveRecord, 0)
 	if err := d.DB.Find(&ll, "combined = ?", false).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -98,6 +104,7 @@ func (d *Downloader) filterLiveList() []*database.LiveRecord {
 }
 
 func (d *Downloader) download(ll []*database.LiveRecord) {
+	logrus.Info("start download")
 	_, err := os.Stat("downloaded")
 	if err != nil {
 		if err := os.MkdirAll(filepath.Join(".", "downloaded"), os.ModePerm); err != nil {
@@ -135,7 +142,7 @@ func (d *Downloader) download(ll []*database.LiveRecord) {
 		for {
 			select {
 			case <-ticker.C:
-				fmt.Printf("downloading: %.2f%%, eta: %s\r", 100*res.Progress(), res.ETA().Format("15:04:05"))
+				fmt.Printf("downloading: %s, progress: %.2f%%, eta: %s\r", v.Name, 100*res.Progress(), res.ETA().Format("15:04:05"))
 			case <-res.Done:
 				if err := res.Err(); err != nil {
 					if strings.Contains(err.Error(), "403 Forbidden") {
@@ -144,8 +151,10 @@ func (d *Downloader) download(ll []*database.LiveRecord) {
 					}
 					logrus.WithError(err).Error("download failed")
 				} else {
-					filename := res.Filename
-					d.DB.Model(&database.Video{}).Where("belongs_to = ?", v.BelongsTo).Updates(&database.Video{Downloaded: true, FileName: filename})
+					logrus.WithField("name", v.Name).Info("video download complete")
+					v.FileName = res.Filename
+					v.Downloaded = true
+					d.DB.Save(&v)
 				}
 				goto BreakVideoLoop
 			}
@@ -163,7 +172,7 @@ func (d *Downloader) download(ll []*database.LiveRecord) {
 		for {
 			select {
 			case <-ticker.C:
-				fmt.Printf("downloading: %.2f%%, eta: %s\r", 100*res.Progress(), res.ETA().Format("15:04:05"))
+				fmt.Printf("downloading: %s, progress: %.2f%%, eta: %s\r", a.Name, 100*res.Progress(), res.ETA().Format("15:04:05"))
 			case <-res.Done:
 				if err := res.Err(); err != nil {
 					if strings.Contains(err.Error(), "403 Forbidden") {
@@ -172,8 +181,10 @@ func (d *Downloader) download(ll []*database.LiveRecord) {
 					}
 					logrus.WithError(err).Error("download failed")
 				} else {
-					filename := res.Filename
-					d.DB.Model(&database.Audio{}).Where("belongs_to = ?", a.BelongsTo).Updates(&database.Audio{Downloaded: true, FileName: filename})
+					logrus.WithField("name", a.Name).Info("audio download complete")
+					a.FileName = res.Filename
+					a.Downloaded = true
+					d.DB.Save(&a)
 				}
 				goto BreakAudioLoop
 			}
@@ -183,8 +194,9 @@ func (d *Downloader) download(ll []*database.LiveRecord) {
 }
 
 func (d *Downloader) combine() {
+	logrus.Info("start combine")
 	vl := make([]*database.Video, 0)
-	if err := d.DB.Where("downloaded = ? and combined = ?", true, false).Find(&vl).Error; err != nil {
+	if err := d.DB.Where("downloaded = ?", true).Find(&vl).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			logrus.Warn("no downloaded video yet")
 		} else {
@@ -193,7 +205,7 @@ func (d *Downloader) combine() {
 		return
 	}
 	al := make([]*database.Audio, 0)
-	if err := d.DB.Where("downloaded = ? and combined = ?", true, false).Find(&al).Error; err != nil {
+	if err := d.DB.Where("downloaded = ?", true, false).Find(&al).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			logrus.Warn("no downloaded audio yet")
 		} else {
@@ -202,7 +214,7 @@ func (d *Downloader) combine() {
 		return
 	}
 	ll := make([]*database.LiveRecord, 0)
-	if err := d.DB.Find(&ll).Error; err != nil {
+	if err := d.DB.Where("combined = ?", false).Find(&ll).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			logrus.Warn("no live record yet")
 		} else {
@@ -210,42 +222,48 @@ func (d *Downloader) combine() {
 		}
 		return
 	}
-	for _, v := range vl {
+
+	for _, l := range ll {
+		logrus.Infof("combining %s", l.Name)
 		var videoFilename, audioFilename, finalName string
-		videoFilename = v.FileName
+		finalName = fmt.Sprintf("%s.mp4", l.Name)
+		for _, v := range vl {
+			if v.BelongsTo == l.LiveId {
+				videoFilename = v.FileName
+				break
+			}
+		}
 		for _, a := range al {
-			if a.BelongsTo == v.BelongsTo {
+			if a.BelongsTo == l.LiveId {
 				audioFilename = a.FileName
 				break
 			}
 		}
-		for _, l := range ll {
-			if l.LiveId == v.BelongsTo {
-				finalName = fmt.Sprintf("%s_%s.mp4", l.UploadTime, finalName)
-				break
-			}
-		}
 
-		if len(audioFilename) == 0 {
-			logrus.WithField("name", finalName).Warn("audio haven't downloaded yet, skip")
+		if len(audioFilename) == 0 || len(videoFilename) == 0 {
+			logrus.WithField("name", finalName).Warn("audio or video haven't downloaded yet, skip")
 			continue
 		}
-		cmd := exec.Command("ffmpeg", "-loglevel", "quiet", "-i", fmt.Sprintf("./downloaded/%s", videoFilename), "-i", fmt.Sprintf("./downloaded/%s", audioFilename), "-vcodec", "copy", "-acodec", "copy", "-y", fmt.Sprintf("./downloaded/%s", finalName))
+		cmd := exec.Command("ffmpeg", "-loglevel", "quiet", "-i", videoFilename, "-i", audioFilename, "-vcodec", "copy", "-acodec", "copy", "-y", fmt.Sprintf("downloaded/%s", finalName))
 		out, err := cmd.Output()
 		if err != nil {
-			logrus.WithError(err).Error("failed to combine video and audio")
+			logrus.WithFields(logrus.Fields{
+				"err": err,
+				"out": string(out),
+			}).Error("failed to combine video and audio")
 			continue
 		}
 		logrus.WithField("output", string(out)).Info("combined, remove temp file")
-		_ = os.Remove(fmt.Sprintf("./downloaded/%s", videoFilename))
-		_ = os.Remove(fmt.Sprintf("./downloaded/%s", audioFilename))
+		_ = os.Remove(videoFilename)
+		_ = os.Remove(audioFilename)
 
-		d.DB.Model(&database.Video{}).Where("belongs_to = ?", v.BelongsTo).Update("combined", true)
-		d.DB.Model(&database.Audio{}).Where("belongs_to = ?", v.BelongsTo).Update("combined", true)
+		l.Combined = true
+		d.DB.Save(&l)
 	}
 }
 
 func (d *Downloader) createGrab(proxy *url.URL, url string) (*grab.Client, *grab.Request, error) {
+	logrus.Info("create grab client")
 	gClient := &grab.Client{
 		UserAgent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.55 Safari/537.36",
 		HTTPClient: &http.Client{

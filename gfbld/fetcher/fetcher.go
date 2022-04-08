@@ -30,6 +30,7 @@ type Fetcher struct {
 }
 
 func NewFetcher(proxy string, id int, vlDocId, viDocId int) *Fetcher {
+	logrus.Info("create fetcher")
 	return &Fetcher{
 		id:      id,
 		vlDocId: vlDocId,
@@ -44,10 +45,12 @@ func NewFetcher(proxy string, id int, vlDocId, viDocId int) *Fetcher {
 }
 
 func (f *Fetcher) FetchLiveList() []*database.LiveRecord {
+	logrus.Info("fetch live videos list")
 	return f.getLiveList(nil, "")
 }
 
 func (f *Fetcher) FetchLiveInfo(ll []*database.LiveRecord, db *gorm.DB) {
+	logrus.Info("fetch live videos' info")
 	f.getLiveInfo(ll, db)
 }
 
@@ -165,18 +168,39 @@ func (f *Fetcher) getLiveInfo(ll []*database.LiveRecord, db *gorm.DB) {
 				au = string(as.GetStringBytes("Representation", "BaseURL"))
 			}
 		}
-		db.Save(&database.Audio{
-			BelongsTo:  l.LiveId,
-			CreateTime: time.Now().Format("2006-01-02 15:04:05"),
-			Name:       l.Name,
-			Url:        au,
-		})
-		db.Save(&database.Video{
-			BelongsTo:  l.LiveId,
-			CreateTime: time.Now().Format("2006-01-02 15:04:05"),
-			Name:       l.Name,
-			Url:        vu,
-		})
+
+		videoRecord := &database.Video{}
+		audioRecord := &database.Audio{}
+		if err := db.Where("belongs_to = ?", l.LiveId).First(&videoRecord).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				db.Save(&database.Video{
+					BelongsTo:  l.LiveId,
+					CreateTime: time.Now().Format("2006-01-02 15:04:05"),
+					Name:       l.Name,
+					Url:        vu,
+				})
+			} else {
+				logrus.WithError(err).Error("failed to retrieve video record")
+			}
+		} else {
+			videoRecord.Url = vu
+			db.Save(&videoRecord)
+		}
+		if err := db.Where("belongs_to = ?", l.LiveId).First(&audioRecord).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				db.Save(&database.Audio{
+					BelongsTo:  l.LiveId,
+					CreateTime: time.Now().Format("2006-01-02 15:04:05"),
+					Name:       l.Name,
+					Url:        au,
+				})
+			} else {
+				logrus.WithError(err).Error("failed to retrieve video record")
+			}
+		} else {
+			audioRecord.Url = au
+			db.Save(&audioRecord)
+		}
 	}
 
 	return
