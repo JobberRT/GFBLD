@@ -73,7 +73,7 @@ func (d *Downloader) Start() {
 				}
 				d.DB.Create(&l)
 			}
-			ll = d.filterLiveList()
+			ll = d.getFilteredLiveList()
 
 			d.Fetcher.FetchLiveInfo(ll, d.DB)
 			d.download(ll)
@@ -90,7 +90,7 @@ func (d *Downloader) Stop() {
 	d.stopSignal <- 1
 }
 
-func (d *Downloader) filterLiveList() []*database.LiveRecord {
+func (d *Downloader) getFilteredLiveList() []*database.LiveRecord {
 	logrus.Info("get filtered live list from database")
 	ll := make([]*database.LiveRecord, 0)
 	if err := d.DB.Find(&ll, "combined = ?", false).Error; err != nil {
