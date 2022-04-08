@@ -53,7 +53,7 @@ func NewDownloader() *Downloader {
 	return &Downloader{
 		DB:         database.NewDB(path),
 		Fetcher:    fetcher.NewFetcher(proxy, id, vlDocId, viDocId),
-		stopSignal: make(chan int),
+		stopSignal: make(chan int, 1),
 	}
 }
 
